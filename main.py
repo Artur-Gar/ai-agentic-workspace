@@ -1,15 +1,13 @@
 import warnings
 warnings.filterwarnings('ignore')
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.graph import StateGraph, END
 import json
 
 from agents.sql_agent import SQLAgent
-from agents.data_agent import DataAgent
 from agents.visualization_agent import VisualizationAgent
 from utils.config import Config
 
@@ -29,7 +27,6 @@ class WorkspaceState(BaseModel):
 
 # Initialize Agents
 sql_agent = SQLAgent()
-data_agent = DataAgent()
 viz_agent = VisualizationAgent()
 
 
@@ -46,22 +43,6 @@ def sql_agent_node(state: WorkspaceState):
     except Exception as e:
         state.results["sql_error"] = str(e)
         state.final_output += f"\n SQL Error: {str(e)}\n"
-    
-    state.step_idx += 1
-    return state
-
-def data_agent_node(state: WorkspaceState):
-    """Analyze data files"""
-    print("[DATA AGENT] → Analyzing data...")
-    state.current_step = "data_agent"
-    
-    try:
-        result = data_agent.analyze(state.task)
-        state.results["data_analysis"] = result
-        state.final_output += f"\n Data Analysis:\n{result}\n"
-    except Exception as e:
-        state.results["data_error"] = str(e)
-        state.final_output += f"\n Data Analysis Error: {str(e)}\n"
     
     state.step_idx += 1
     return state
@@ -93,8 +74,6 @@ def summary_agent_node(state: WorkspaceState):
     if "sql_result" in state.results:
         summary_parts.append(f"Database Query Results: {state.results['sql_result'][:200]}...")
     
-    if "data_analysis" in state.results:
-        summary_parts.append(f"Data Analysis: {state.results['data_analysis'][:200]}...")
     
     if "visualization" in state.results:
         summary_parts.append(f"Visualizations Created: Check generated charts and plots")
@@ -128,7 +107,6 @@ def router_node(state: WorkspaceState):
 
     Available Agents:
     - sql_agent: For database queries, SQL operations, data retrieval from databases
-    - data_agent: For CSV file operations, data analysis, statistics, data loading
     - visualization_agent: For creating charts, plots, graphs, visualizations
     - summary_agent: For creating final summaries (always include this last)
 
@@ -136,7 +114,7 @@ def router_node(state: WorkspaceState):
 
     Return ONLY a JSON object with this structure:
     {{
-        "plan": ["agent1", "agent2", "agent3", "summary_agent"]
+        "plan": ["agent1", "agent2", ..., "summary_agent"]
     }}
     """
 
@@ -171,7 +149,6 @@ def create_workflow():
     # Add nodes
     graph.add_node("router", router_node)
     graph.add_node("sql_agent", sql_agent_node)
-    graph.add_node("data_agent", data_agent_node)
     graph.add_node("visualization_agent", visualization_agent_node)
     graph.add_node("summary_agent", summary_agent_node)
     
@@ -181,14 +158,13 @@ def create_workflow():
     # Define conditional edges from router
     agent_edges = {
     "sql_agent": "sql_agent",
-    "data_agent": "data_agent",
     "visualization_agent": "visualization_agent",
     "summary_agent": "summary_agent",
     "end": END
     }
     
     # Define edges between agent nodes
-    for node in ["router", "sql_agent", "data_agent", "visualization_agent", "summary_agent"]:
+    for node in ["router", "sql_agent", "visualization_agent", "summary_agent"]:
         graph.add_conditional_edges(node, decide_next_step, agent_edges)
     
     return graph.compile()
@@ -201,7 +177,7 @@ class AgenticWorkspace:
     def __init__(self):
         self.workflow = create_workflow()
         self.task_history = []
-        self.memory = []   # 👈 rolling chat memory
+        self.memory = []   # rolling chat memory
 
     def _update_memory(self, user_input: str, agent_output: str):
         """Maintain the last 10 exchanges"""

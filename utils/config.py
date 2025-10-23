@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,4 +21,4 @@ class Config:
     DB_NAME = os.getenv("DB_NAME")
     
     # Data settings
-    DATAFRAME_CACHE = {}
+    DATAFRAME_STORE: dict[str, pd.DataFrame] = {}

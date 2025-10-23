@@ -14,17 +14,21 @@ class SQLAgent:
             max_tokens=Config.MAX_TOKENS
         )
         self.agent = None
+        self.db = None
         self._setup_agent()
     
     def _setup_agent(self):
         """Initialize SQL agent with database connection"""
         try:
-            mysql_uri = f'mysql+mysqlconnector://{Config.DB_USERNAME}:{Config.DB_PASSWORD}@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}'
-            db = SQLDatabase.from_uri(mysql_uri)
+            mysql_uri = (
+                f'mysql+mysqlconnector://{Config.DB_USERNAME}:{Config.DB_PASSWORD}'
+                f'@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}'
+            )
+            self.db = SQLDatabase.from_uri(mysql_uri)
             
             self.agent = create_sql_agent(
                 llm=self.llm,
-                db=db,
+                db=self.db,
                 verbose=False,
                 handle_parsing_errors=True,
                 agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION
@@ -34,9 +38,6 @@ class SQLAgent:
     
     def query(self, question: str) -> str:
         """Execute SQL query using natural language"""
-        if not self.agent:
-            return "SQL agent not available. Check database connection."
-        
         try:
             result = self.agent.invoke(question)
             return result.get('output', str(result))

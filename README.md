@@ -4,8 +4,7 @@ A modular LLM operating system for data tasks that automatically routes natural 
 
 ## Features
 
-- **SQL Agent**: Natural language database queries
-- **Data Agent**: CSV analysis and operations  
+- **SQL Agent**: Natural language database queries 
 - **Visualization Agent**: Automated chart generation using LangChain's pandas agent
 - **Streamlit UI**: User-friendly web interface
 - **Modular Architecture**: Easy to extend with new agents
