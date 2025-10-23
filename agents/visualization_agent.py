@@ -1,14 +1,11 @@
 import pandas as pd
 import json
-from io import StringIO
+
+from langchain_core.runnables import RunnableLambda, RunnableSequence
 from langchain_openai import ChatOpenAI
 from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
 from langchain_core.prompts import ChatPromptTemplate
 from utils.config import Config
-
-import matplotlib.pyplot as plt
-import io
-import contextlib
 
 from typing import List, Any
 from pydantic import BaseModel, ValidationError
@@ -30,10 +27,9 @@ class VisualizationAgent:
 
     def from_sql_output(self, sql_text: str) -> str:
         """Convert raw SQLAgent text output into a pandas DataFrame using LLM for CSV conversion"""
-        try:
-            prompt = ChatPromptTemplate.from_template(
+        prompt = ChatPromptTemplate.from_template(
                 """
-                The following text is a raw SQL query output.
+                The following text with a raw text SQL query output.
                 Convert ONLY the tabular data portion into valid JSON with this structure:
                 {{
                     "columns": ["col1", "col2", ...],
@@ -51,26 +47,24 @@ class VisualizationAgent:
                 {sql_text}
                 ```
                 """
-            )
-            
-            formatted = prompt.format(sql_text=sql_text)
+        )
+        formatted = prompt.format(sql_text=sql_text)
+        
+        try:    
             response = self.llm.invoke(formatted)
 
             # Clean up and parse
             json_text = response.content.strip().strip('`')
             data = json.loads(json_text)
 
-            try:
-                schema = TableSchema(**data)
-                df = pd.DataFrame(schema.rows, columns=schema.columns)
+            schema = TableSchema(**data)
+            df = pd.DataFrame(schema.rows, columns=schema.columns)
 
-                self.current_dataframe = df
-                return f"✅ Converted SQL output into DataFrame with columns: {df.columns.tolist()} (shape {df.shape})."
-            except Exception:
-                return "⚠️ LLM did not return valid CSV format."
+            self.current_dataframe = df
+            return {"output": sql_text}
         
         except Exception as e:
-            return f"Error converting SQL output: {str(e)}"
+            return {"output": f"Error converting SQL output: {str(e)}"}
     
     def visualize(self, question: str) -> str:
         """Create visualizations using pandas dataframe agent"""
@@ -101,17 +95,23 @@ class VisualizationAgent:
                     code_used = last_step[0].tool_input
                     output += f"\n\nGenerated Code:\n{code_used}"
             
-            ## Try executing generated code if it contains matplotlib
-            #if code_used and "plt" in code_used:
-            #    try:
-            #        local_vars = {"df": self.current_dataframe, "plt": plt, "pd": pd}
-            #        with contextlib.redirect_stdout(io.StringIO()):
-            #            exec(code_used, {}, local_vars)
-            #        plt.show()
-            #    except Exception as plot_error:
-            #        output += f"\n Could not execute plot code: {plot_error}"
-            
             return output
             
         except Exception as e:
             return f"Error creating visualization: {str(e)}"
+
+    # LCEL PIPELINE
+    def run_whole_pipeline(self, question: str):
+        convert_stage = RunnableLambda(lambda x: self.from_sql_output(x["query"]))
+        visualize_stage = RunnableLambda(lambda x: self.visualize(x["output"]))
+        
+        universal_chain = (
+            convert_stage
+            | visualize_stage
+        )
+
+        result = universal_chain.invoke({
+            "query": question
+        })
+
+        return  result

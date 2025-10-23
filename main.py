@@ -53,7 +53,7 @@ def visualization_agent_node(state: WorkspaceState):
     state.current_step = "visualization_agent"
     
     try:        
-        result = viz_agent.visualize(state.task)
+        result = viz_agent.run_whole_pipeline(state.task)
         state.results["visualization"] = result
         state.final_output += f"\n Visualization:\n{result}\n"
     except Exception as e:
@@ -228,8 +228,8 @@ def main():
     
     # Demo tasks that will trigger different agent sequences
     demo_tasks = [
-        "Query the database for all customers and create a bar chart of their countries",
-        "I meant not considering US",
+        "Query the database for all customers and create a bar chart of the destribution of their countries",
+        #"I meant not considering US. Do it",
         #"Load student data and plot a histogram of final grades",
         #"Show me summary statistics of available CSV files",
         #"Create a scatter plot of study time vs final grades from the student dataset",
