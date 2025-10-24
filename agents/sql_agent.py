@@ -1,18 +1,17 @@
 import pandas as pd
 import json
+from typing import List, Any
+from pydantic import BaseModel
 
 from langchain_openai import ChatOpenAI
 from langchain_community.utilities.sql_database import SQLDatabase
 from langchain_community.agent_toolkits import create_sql_agent
 from langchain.agents import AgentType
-
 from langchain_core.runnables import RunnableLambda
 from langchain_core.prompts import ChatPromptTemplate
 
 from utils.config import Config
 
-from typing import List, Any
-from pydantic import BaseModel, ValidationError
 
 class TableSchema(BaseModel):
     columns: List[str]
@@ -48,48 +47,55 @@ class SQLAgent:
                 db=self.db,
                 verbose=False,
                 handle_parsing_errors=True,
-                agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION
+                agent_type=AgentType.OPENAI_FUNCTIONS
             )
         except Exception as e:
             print(f"SQL agent setup failed: {e}")
 
     def query(self, question: str) -> str:
         """Execute SQL query using natural language"""
+        prompt = ChatPromptTemplate.from_template(
+            """
+            Given the user request, generate and execute a SQL query. 
+            
+            User request: {question}
+            """
+        )
+        formatted = prompt.format(question=question)
+        
         try:
-            result = self.agent.invoke(question)
+            result = self.agent.invoke(formatted)
             output = result.get('output', str(result))
 
             return {"output": output}
         
         except Exception as e:
-            print(f'############### error SQL LLLL: {str(e)}')
             return {"output": f"Error executing query: {str(e)}"}
 
     def from_sql_output(self, sql_text: str) -> str:
         """Convert raw SQLAgent text output into a pandas DataFrame using LLM for CSV conversion"""
         prompt = ChatPromptTemplate.from_template(
-                """
-                The following text with a raw text SQL query output.
-                Convert ONLY the tabular data portion into valid JSON with this structure:
-                {{
-                    "columns": ["col1", "col2", ...],
-                    "rows": [
-                        [val11, val12, ...],
-                        [val21, val22, ...]
-                    ]
-                }}
+            """
+            The following text with a raw text SQL query output.
+            Convert ONLY the tabular data portion into valid JSON with this structure:
+            {{
+                "columns": ["col1", "col2", ...],
+                "rows": [
+                    [val11, val12, ...],
+                    [val21, val22, ...]
+                ]
+            }}
 
-                Ensure column names are meaningful (based on the SQL output context).
-                Do NOT include explanations or code fencing — output ONLY the JSON.
+            Ensure column names are meaningful (based on the SQL output context).
+            Do NOT include explanations or code fencing — output ONLY the JSON.
 
-                SQL Output:
-                ```
-                {sql_text}
-                ```
-                """
+            SQL Output:
+            ```
+            {sql_text}
+            ```
+            """
         )
         formatted = prompt.format(sql_text=sql_text)
-        print(f'############### sql_text: {sql_text}')
         
         try:    
             response = self.llm.invoke(formatted)

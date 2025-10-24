@@ -1,12 +1,14 @@
-from langchain_openai import ChatOpenAI
-from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
-from utils.config import Config
-
-
-# Directory for storing plots
 import matplotlib.pyplot as plt
 import os
-import datetime
+from datetime import datetime
+
+from langchain_openai import ChatOpenAI
+from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
+from langchain_core.prompts import ChatPromptTemplate
+
+from utils.config import Config
+
+# Directory for storing plots
 PLOTS_DIR = "plots"
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
@@ -39,20 +41,31 @@ class VisualizationAgent:
                 llm=self.llm,
                 df=df,
                 verbose=False,
-                allow_dangerous_code=True,  # Required for matplotlib code execution
-                max_execution_time=30,
+                allow_dangerous_code=True,  # needed for matplotlib code execution
+                max_execution_time=45,
                 return_intermediate_steps=True,
                 handle_parsing_errors=True
             )
+
+            prompt = ChatPromptTemplate.from_template(
+                """
+                Execute the user request, using tools from pandas, matplotlib or seaborn packages. 
+                As for the data source use ONLY provided DataFrame.
+                If a plot is required - build it.
+                
+                User request: {question}
+                """
+            )
+            formatted = prompt.format(question=question)
             
-            result = agent.invoke(question+". If a plot is buils - save final one")
+            result = agent.invoke(formatted)
             
             # Extract both the output and any generated code
             output = result.get('output', str(result))
 
             # Automatically save any figure after execution
             if plt.get_fignums():
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
                 filepath = os.path.join(PLOTS_DIR, f"auto_saved_{timestamp}.png")
                 plt.savefig(filepath, bbox_inches="tight")
                 plt.close("all")
