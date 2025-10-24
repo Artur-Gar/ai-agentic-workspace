@@ -9,6 +9,7 @@ import json
 
 from agents.sql_agent import SQLAgent
 from agents.visualization_agent import VisualizationAgent
+from utils.orchestrator import Orchestrator
 from utils.config import Config
 
 
@@ -25,10 +26,16 @@ class WorkspaceState(BaseModel):
     history: List[Dict[str, str]] = []
 
 
-# Initialize Agents
-sql_agent = SQLAgent()
-viz_agent = VisualizationAgent()
+# Create orchestrator
+orchestrator = Orchestrator()
 
+# Initialize agents with orchestrator
+sql_agent = SQLAgent(orchestrator)
+viz_agent = VisualizationAgent(orchestrator)
+
+# Register them
+#orchestrator.register_sql_agent(sql_agent)
+#orchestrator.register_visualization_agent(viz_agent)
 
 # Nodes
 def sql_agent_node(state: WorkspaceState):
@@ -37,7 +44,8 @@ def sql_agent_node(state: WorkspaceState):
     state.current_step = "sql_agent"
     
     try:
-        result = sql_agent.query(state.task)
+        result = sql_agent.run_whole_pipeline(state.task)
+        result = result.get('output', str(result))
         state.results["sql_result"] = result
         state.final_output += f"\n SQL Results:\n{result}\n"
     except Exception as e:
@@ -53,7 +61,8 @@ def visualization_agent_node(state: WorkspaceState):
     state.current_step = "visualization_agent"
     
     try:        
-        result = viz_agent.run_whole_pipeline(state.task)
+        result = viz_agent.visualize(state.task)
+        result = result.get('output', str(result))
         state.results["visualization"] = result
         state.final_output += f"\n Visualization:\n{result}\n"
     except Exception as e:
@@ -65,7 +74,7 @@ def visualization_agent_node(state: WorkspaceState):
 
 def summary_agent_node(state: WorkspaceState):
     """Create final summary"""
-    print("[SUMMARY AGENT] → Generating final report...")
+    print("[SUMMARY AGENT] - Generating final report...")
     state.current_step = "summary_agent"
     
     # Create a cohesive summary from all results
@@ -73,7 +82,6 @@ def summary_agent_node(state: WorkspaceState):
     
     if "sql_result" in state.results:
         summary_parts.append(f"Database Query Results: {state.results['sql_result'][:200]}...")
-    
     
     if "visualization" in state.results:
         summary_parts.append(f"Visualizations Created: Check generated charts and plots")
@@ -228,7 +236,7 @@ def main():
     
     # Demo tasks that will trigger different agent sequences
     demo_tasks = [
-        "Query the database for all customers and create a bar chart of the destribution of their countries",
+        "Query the database for all customers and create a bar chart with their number per country",
         #"I meant not considering US. Do it",
         #"Load student data and plot a histogram of final grades",
         #"Show me summary statistics of available CSV files",
