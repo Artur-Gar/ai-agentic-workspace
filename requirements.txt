@@ -1,0 +1,27 @@
+# Core LangChain & AI
+langchain
+langchain-openai
+langchain-experimental
+langchain-community
+langgraph
+
+# OpenAI
+openai
+
+# Data Processing
+pandas
+
+# Database
+sqlalchemy
+mysql-connector-python
+
+# Visualization
+matplotlib
+seaborn
+
+# Web Framework
+streamlit
+
+# Environment & Utilities
+python-dotenv
+pydantic

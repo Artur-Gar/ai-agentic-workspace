@@ -1,0 +1,10 @@
+# === Python build and bytecode ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# === Environment files ===
+.env
+.env.*
