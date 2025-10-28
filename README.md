@@ -71,8 +71,8 @@ agentic-workspace/
 │   ├── __init__.py
 │   ├── config.py
 │   └── orchestrator.py
-v
-├── plots
+|
+├── plots/
 │
 ├── main.py
 ├── Results Notebook.ipynb
