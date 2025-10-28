@@ -58,7 +58,7 @@ pip install -r requirements.txt
 Create a .env file with your API key and other configuration parameters as in **example.env** file:
 
 
-Project Structure:
+## Project Structure:
 <pre>
 agentic-workspace/
 │
@@ -82,7 +82,7 @@ v
 </pre>
 
 
-Usage Examples (for relevant databases)
+## Usage Examples (for relevant databases)
 - "Plot a histogram of customer ages"
 - "Query the database for top products"
 - "Show summary statistics of sales data"
